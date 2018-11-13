@@ -1,12 +1,13 @@
 import argparse
 import random
 import numpy
+from scipy.misc import imsave
 from matplotlib import pylab
 
 parser = argparse.ArgumentParser(description='Generate random features.')
-parser.add_argument('-f', dest='numFeatures', default=1, type=int,
-                    help='Number of feature types')
-parser.add_argument('-F', dest='maxNumFeaturesOfType', default=1, type=int,
+parser.add_argument('-l', dest='numLevels', default=1, type=int,
+                    help='Number of levels (feature types)')
+parser.add_argument('-f', dest='maxNumFeaturesOfType', default=1, type=int,
                     help='Max number of features of a certain type')
 parser.add_argument('-x', dest='numXPixels', default=128, type=int,
                     help='Number of x pixels')
@@ -18,8 +19,34 @@ parser.add_argument('-p', dest='plot', action='store_true',
                     help='Plot data')
 parser.add_argument('-v', dest='verbose', action='store_true',
                     help='Run in verbose mode')
+parser.add_argument('-o', dest='output', type=str, default='',
+                    help='Save image')
 
 args = parser.parse_args()
+
+def toImage(filename, data):
+    """
+    Convert the array to an image
+    @param data array of numpy.int values
+    """
+    dataCol = numpy.zeros(list(data.shape) + [3,], numpy.int16)
+    minVal, maxVal = data.min(), data.max()
+    difVal = float(maxVal - minVal)
+    if difVal > 0:
+
+        #xx = numpy.array(255*(numpy.array(data, numpy.float64) - minVal)/difVal, numpy.int8)
+        xx = (data - minVal) / difVal
+
+        # red
+        dataCol[..., 1] = 255*numpy.maximum(0, 2*xx - 1)
+
+        # red
+        dataCol[..., 0] = 255*(1 - abs(2*xx - 1))
+
+        # blue
+        dataCol[..., 2] = 255*numpy.maximum(0, 1 - 2*xx)
+
+    imsave(filename, dataCol)
 
 class Feature(object):
 
@@ -69,13 +96,14 @@ class Feature(object):
         return data
 
 
+
 # create the array
 data = numpy.zeros((args.numXPixels, args.numYPixels), numpy.int)
 random.seed(args.seed)
 
 stats = {}
 
-for level in range(1, args.numFeatures + 1):
+for level in range(1, args.numLevels + 1):
 
     # number of features of that type
     n = int(args.maxNumFeaturesOfType * random.random())
@@ -103,6 +131,9 @@ for level in range(1, args.numFeatures + 1):
 
 for level in stats:
     print('level {} => {} features'.format(level, stats[level]))
+
+if args.output:
+    toImage(args.output, data)
 
 if args.plot:
     pylab.pcolor(data.transpose())
